@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <SimpleTimer.h>
 #include <LiquidCrystal.h>
-#include <RTC.h>
+#include <Wire.h>
+#include <RTClib.h>
+#include "ProgmemString.h"
 #include "Logging.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -25,7 +27,7 @@ const byte MASTER_POWER_ENABLE_PIN = 11;
 ////////////////////////////////////////////////////////////////////////////////
 // Constants
 
-const float LOW_VOLTAGE_CUTOFF = 12.0;
+const float LOW_VOLTAGE_CUTPOWER_OFF = 12.0;
 const int CURRENT_SCALAR = 185;
 const float SOLAR_VOLTAGE_SCALAR = 4.0;
 const float BATTERY_VOLTAGE_SCALAR = 2.0;
@@ -42,8 +44,8 @@ enum CHARGERS{
 };
 
 enum POWER_STATES{
-    ON = HIGH,
-    OFF = LOW
+    POWER_ON = HIGH,
+    POWER_OFF = LOW
 };
 
 enum DISPLAY_PAGES{
@@ -61,7 +63,7 @@ float battery_voltage;
 char datetime[DATETIME_BUFFER_WIDTH];
 
 bool charger_supply = MAINS;
-bool master_power_state = OFF;
+bool master_power_state = POWER_OFF;
 
 LiquidCrystal display(LCD_RS_PIN, LCD_ENABLE_PIN, LCD_D0_PIN, LCD_D1_PIN, LCD_D2_PIN, LCD_D3_PIN);
 RTC_DS3231 rtc;
@@ -163,14 +165,14 @@ void check_battery(){
 void switch_master_power(bool state){
     /**
     * Switch the master power to the security system to the specified state
-    * @param state Power state of the security system {ON = 1, OFF = 0}
+    * @param state Power state of the security system {POWER_ON = 1, POWER_OFF = 0}
     */
-    if (state == ON){
-        digitalWrite(MASTER_POWER_ENABLE_PIN, ON);
+    if (state == POWER_ON){
+        digitalWrite(MASTER_POWER_ENABLE_PIN, POWER_ON);
     }
     else{
-        state = OFF;
-        digitalWrite(MASTER_POWER_ENABLE_PIN, OFF);
+        state = POWER_OFF;
+        digitalWrite(MASTER_POWER_ENABLE_PIN, POWER_OFF);
     }
     master_power_state = state;
 }
@@ -204,7 +206,7 @@ long get_timestamp() {
   return now.secondstime();
 }
 
-void get_datetime(char *buffer) {
+void get_datetime(char buffer[]) {
   /** Get the datetime in string format
   * DateTime follows the standard ISO format ("YYYY-MM-DD hh:mm:ss")
   * @param buffer Character buffer to write datetime to; Must be at least 20
@@ -213,7 +215,7 @@ void get_datetime(char *buffer) {
   DateTime now = rtc.now();
 
   // Get the DateTime into the standard, readable format
-  sprintf(buffer, P("%04d-%02d-%02d %02d:%02d"), now.year, now.month(),
+  sprintf(buffer, P("%04d-%02d-%02d %02d:%02d"), now.year(), now.month(),
           now.day(), now.hour(), now.minute(), now.second());
 }
 
